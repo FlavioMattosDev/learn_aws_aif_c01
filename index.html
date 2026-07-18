@@ -612,11 +612,22 @@
             background: rgba(37, 99, 235, 0.08);
             border: 1px solid rgba(37, 99, 235, 0.2);
             border-radius: var(--radius-sm);
-            padding: 1.5rem;
+            padding: 2rem;
             margin-top: 1.5rem;
-            font-size: 0.95rem;
-            line-height: 1.7;
+            font-size: 0.92rem;
+            line-height: 1.75;
         }
+        .quiz-explanation .expl-section { margin-bottom: 1.2rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .quiz-explanation .expl-section:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+        .quiz-explanation .expl-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 8px; }
+        .quiz-explanation .expl-title.correct { color: var(--success); }
+        .quiz-explanation .expl-title.concept { color: var(--secondary); }
+        .quiz-explanation .expl-title.wrong { color: var(--danger); }
+        .quiz-explanation .expl-title.tip { color: var(--accent); }
+        .quiz-explanation .expl-body { color: var(--text-secondary); padding-left: 0.5rem; }
+        .quiz-explanation .expl-body strong { color: var(--text-primary); }
+        .quiz-explanation .expl-bullet { padding: 0.4rem 0 0.4rem 1rem; border-left: 2px solid rgba(255,255,255,0.1); margin: 0.4rem 0; }
+        .quiz-explanation .expl-bullet strong { color: var(--danger); }
 
         .quiz-nav-buttons {
             display: flex;
@@ -2317,6 +2328,52 @@
     }
 
     // ============================================================
+    // FORMAT EXPLANATION (rich HTML)
+    // ============================================================
+    function formatExplanation(text) {
+        if (!text) return '';
+        const sections = text.split('\n\n');
+        let html = '';
+        for (const section of sections) {
+            const trimmed = section.trim();
+            if (!trimmed) continue;
+            if (trimmed.startsWith('✅')) {
+                const content = trimmed.replace('✅ ', '').replace(/^Resposta Correta \([A-D]\):\s*/, '');
+                html += `<div class="expl-section"><div class="expl-title correct">✅ Resposta Correta</div><div class="expl-body">${formatInline(content)}</div></div>`;
+            } else if (trimmed.startsWith('📚')) {
+                const content = trimmed.replace('📚 ', '').replace(/^Conceito-chave:\s*/, '');
+                html += `<div class="expl-section"><div class="expl-title concept">📚 Conceito-chave</div><div class="expl-body">${formatInline(content)}</div></div>`;
+            } else if (trimmed.startsWith('❌')) {
+                const lines = trimmed.split('\n');
+                let wrongHtml = '<div class="expl-section"><div class="expl-title wrong">❌ Por que as outras estão erradas</div>';
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line.startsWith('•') || line.startsWith('-')) {
+                        const cleanLine = line.replace(/^[•\-]\s*/, '');
+                        wrongHtml += `<div class="expl-bullet">${formatInline(cleanLine)}</div>`;
+                    }
+                }
+                wrongHtml += '</div>';
+                html += wrongHtml;
+            } else if (trimmed.startsWith('💡')) {
+                const content = trimmed.replace('💡 ', '').replace(/^Dica para o exame:\s*/i, '');
+                html += `<div class="expl-section"><div class="expl-title tip">💡 Dica para o Exame</div><div class="expl-body">${formatInline(content)}</div></div>`;
+            } else {
+                html += `<div class="expl-section"><div class="expl-body">${formatInline(trimmed)}</div></div>`;
+            }
+        }
+        return html;
+    }
+
+    function formatInline(text) {
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\"(.*?)\"/g, '<em>"$1"</em>')
+            .replace(/→/g, ' → ')
+            .replace(/\n/g, '<br>');
+    }
+
+    // ============================================================
     // RENDER QUESTION
     // ============================================================
     function renderQuizQuestion() {
@@ -2366,13 +2423,8 @@
 
         if (revealed) {
             const isCorrect = selected === q.correct;
-            const expl = q.explanation.replace(/\n/g, '<br>');
-            html += `<div class="quiz-explanation">
-                <strong style="color:${isCorrect ? 'var(--success)' : 'var(--danger)'}">
-                    ${isCorrect ? '✅ Resposta correta!' : '❌ Resposta incorreta. A correta é ' + q.correct + '.'}
-                </strong><br><br>
-                ${expl}
-            </div>`;
+            const expl = formatExplanation(q.explanation);
+            html += `<div class="quiz-explanation">${expl}</div>`;
         }
 
         html += `</div>`;
